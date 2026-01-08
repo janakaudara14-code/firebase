@@ -1,0 +1,30 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "remote-controller-93f07",
+          "appId": "1:89767305458:android:3520effc35796c2727706b",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "remote-controller-93f07",
+          "configurations": {
+            "android": "1:89767305458:android:3520effc35796c2727706b",
+            "web": "1:89767305458:web:397185ee583ae62d27706b"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

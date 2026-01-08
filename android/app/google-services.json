@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "89767305458",
+    "firebase_url": "https://remote-controller-93f07-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "remote-controller-93f07",
+    "storage_bucket": "remote-controller-93f07.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:89767305458:android:3520effc35796c2727706b",
+        "android_client_info": {
+          "package_name": "com.example.myapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzBqvKxvy52N7LBamHT8Wz52PChePRTHQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:89767305458:android:49fb7d321d276fc427706b",
+        "android_client_info": {
+          "package_name": "com.remote.remote"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzBqvKxvy52N7LBamHT8Wz52PChePRTHQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
