@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Pro Car Remote',
+      title: 'controller',
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF121212),
@@ -50,35 +50,54 @@ class _CarRemoteState extends State<CarRemote> {
   
   // We use a timer to prevent spamming Firebase with Joystick data
   Timer? _debounceTimer;
-  String _lastCommand = "stop";
+  
+  // Store the last sent command map to prevent redundant writes
+  Map<String, int> _lastCommandMap = {
+    'forward': 0,
+    'backward': 0,
+    'left': 0,
+    'right': 0,
+  };
 
-  void _sendCommand(String command) {
-    if (_lastCommand != command) {
+  void _sendJoystickCommand(Map<String, int> command) {
+    // Using string comparison for maps is a simple way to check for equality.
+    if (command.toString() != _lastCommandMap.toString()) {
       _ref.set(command);
-      _lastCommand = command;
+      _lastCommandMap = command;
       print("Sent: $command"); // Debug log
     }
   }
 
-  // Translates Joystick X/Y to your existing simple commands
-  // You can upgrade this later to send raw X/Y to the car for speed control
+  // Translates Joystick X/Y to a command map
   void _handleJoystickChange(StickDragDetails details) {
     if (_debounceTimer?.isActive ?? false) return;
 
     _debounceTimer = Timer(const Duration(milliseconds: 100), () {
+      final command = {
+        'forward': 0,
+        'backward': 0,
+        'left': 0,
+        'right': 0,
+      };
+
+      // Handle vertical movement
       if (details.y < -0.5) {
-        _sendCommand('forward');
+        command['forward'] = 1;
       } else if (details.y > 0.5) {
-        _sendCommand('backward');
-      } else if (details.x < -0.5) {
-        _sendCommand('left');
-      } else if (details.x > 0.5) {
-        _sendCommand('right');
-      } else {
-        _sendCommand('stop');
+        command['backward'] = 1;
       }
+
+      // Handle horizontal movement
+      if (details.x < -0.5) {
+        command['left'] = 1;
+      } else if (details.x > 0.5) {
+        command['right'] = 1;
+      }
+      
+      _sendJoystickCommand(command);
     });
   }
+
 
   @override
   Widget build(BuildContext context) {

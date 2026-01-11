@@ -1,6 +1,6 @@
 {
-    "name": "myapp",
-    "short_name": "myapp",
+    "name": "controller",
+    "short_name": "controller",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
