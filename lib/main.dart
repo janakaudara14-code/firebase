@@ -1,15 +1,22 @@
-
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_joystick/flutter_joystick.dart'; // Import the joystick package
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  
+  // Force Landscape for a "Controller" feel
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+  
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   runApp(const MyApp());
 }
 
@@ -19,150 +26,279 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Car Remote',
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF212121),
+      title: 'Pro Car Remote',
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        useMaterial3: true,
       ),
       home: const CarRemote(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class CarRemote extends StatelessWidget {
+class CarRemote extends StatefulWidget {
   const CarRemote({super.key});
+
+  @override
+  State<CarRemote> createState() => _CarRemoteState();
+}
+
+class _CarRemoteState extends State<CarRemote> {
+  final DatabaseReference _ref = FirebaseDatabase.instance.ref('car/command');
+  
+  // We use a timer to prevent spamming Firebase with Joystick data
+  Timer? _debounceTimer;
+  String _lastCommand = "stop";
+
+  void _sendCommand(String command) {
+    if (_lastCommand != command) {
+      _ref.set(command);
+      _lastCommand = command;
+      print("Sent: $command"); // Debug log
+    }
+  }
+
+  // Translates Joystick X/Y to your existing simple commands
+  // You can upgrade this later to send raw X/Y to the car for speed control
+  void _handleJoystickChange(StickDragDetails details) {
+    if (_debounceTimer?.isActive ?? false) return;
+
+    _debounceTimer = Timer(const Duration(milliseconds: 100), () {
+      if (details.y < -0.5) {
+        _sendCommand('forward');
+      } else if (details.y > 0.5) {
+        _sendCommand('backward');
+      } else if (details.x < -0.5) {
+        _sendCommand('left');
+      } else if (details.x > 0.5) {
+        _sendCommand('right');
+      } else {
+        _sendCommand('stop');
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Container(
-          width: 220,
-          height: 600,
-          decoration: BoxDecoration(
-            color: const Color(0xFF2D2D2D),
-            borderRadius: BorderRadius.circular(50),
-            border: Border.all(color: Colors.grey[800]!, width: 2),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black54,
-                blurRadius: 15,
-                offset: Offset(5, 5),
-              ),
-              BoxShadow(
-                color: Colors.white10,
-                blurRadius: 10,
-                offset: Offset(-3, -3),
-              ),
-            ],
+      body: Container(
+        decoration: const BoxDecoration(
+          // Subtle dark radial gradient background
+          gradient: RadialGradient(
+            center: Alignment.center,
+            radius: 1.2,
+            colors: [Color(0xFF2C2C2C), Color(0xFF000000)],
           ),
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              CarRemoteButton(assetName: 'assets/icons/lock.svg', command: 'lock', isMovementButton: false),
-              CarRemoteButton(assetName: 'assets/icons/unlock.svg', command: 'unlock', isMovementButton: false),
-              CarRemoteButton(assetName: 'assets/icons/trunk.svg', command: 'trunk', isMovementButton: false),
-              CarRemoteButton(assetName: 'assets/icons/panic.svg', command: 'panic', isMovementButton: false),
-              SizedBox(height: 20),
-              Column(
-                children: [
-                  CarRemoteButton(assetName: 'assets/icons/forward.svg', command: 'forward'),
-                  SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      CarRemoteButton(assetName: 'assets/icons/left.svg', command: 'left'),
-                      CarRemoteButton(assetName: 'assets/icons/right.svg', command: 'right'),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            // --- LEFT SIDE: JOYSTICK ---
+            Expanded(
+              child: Center(
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
                     ],
                   ),
-                  SizedBox(height: 10),
-                  CarRemoteButton(assetName: 'assets/icons/backward.svg', command: 'backward'),
-                ],
+                  child: Joystick(
+                    mode: JoystickMode.all,
+                    listener: _handleJoystickChange,
+                    base: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF1E1E1E),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white10,
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          )
+                        ],
+                      ),
+                    ),
+                    stick: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF333333),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white24, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.8),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                            offset: const Offset(4, 4),
+                          ),
+                        ],
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF4A4A4A), Color(0xFF222222)],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ],
-          ),
+            ),
+
+            // --- CENTER: DASHBOARD (Optional Status) ---
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.wifi, color: Colors.green, size: 24),
+                const SizedBox(height: 8),
+                Text(
+                  "ONLINE",
+                  style: TextStyle(
+                    color: Colors.green.withOpacity(0.7),
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ],
+            ),
+
+            // --- RIGHT SIDE: ACTION BUTTONS ---
+            const Expanded(
+              child: Center(
+                child: ActionGrid(),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class CarRemoteButton extends StatefulWidget {
-  final String assetName;
-  final String command;
-  final bool isMovementButton;
-
-  const CarRemoteButton({super.key, required this.assetName, required this.command, this.isMovementButton = true});
+class ActionGrid extends StatelessWidget {
+  const ActionGrid({super.key});
 
   @override
-  git createState() => _CarRemoteButtonState();
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 220, // Constrain width to keep buttons tight
+      child: GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        mainAxisSpacing: 20,
+        crossAxisSpacing: 20,
+        children: const [
+          // Blue: Headlights
+          CyberButton(
+            color: Color(0xFF1976D2), // Blue
+            icon: Icons.highlight,
+            command: 'lights',
+          ),
+          // Yellow: Horn
+          CyberButton(
+            color: Color(0xFFFBC02D), // Yellow
+            icon: Icons.volume_up_rounded,
+            command: 'horn',
+          ),
+          // Red: Lock
+          CyberButton(
+            color: Color(0xFFD32F2F), // Red
+            icon: Icons.lock_outline,
+            command: 'lock',
+          ),
+          // Green: Start/Engine
+          CyberButton(
+            color: Color(0xFF388E3C), // Green
+            icon: Icons.power_settings_new,
+            command: 'start',
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _CarRemoteButtonState extends State<CarRemoteButton> {
+class CyberButton extends StatefulWidget {
+  final Color color;
+  final IconData icon;
+  final String command;
+
+  const CyberButton({
+    super.key,
+    required this.color,
+    required this.icon,
+    required this.command,
+  });
+
+  @override
+  State<CyberButton> createState() => _CyberButtonState();
+}
+
+class _CyberButtonState extends State<CyberButton> {
   bool _isPressed = false;
 
-  void _sendCommand(String command) {
-    DatabaseReference remoteRef = FirebaseDatabase.instance.ref('car/command');
-    remoteRef.set(command);
+  void _triggerAction() {
+    // Send simple toggle commands or press events
+    FirebaseDatabase.instance.ref('car/action').set(widget.command);
   }
 
   @override
   Widget build(BuildContext context) {
-    final double buttonSize = widget.isMovementButton ? 60 : 80;
-    final double iconSize = widget.isMovementButton ? 30 : 35;
-
     return GestureDetector(
       onTapDown: (_) {
-        setState(() {
-          _isPressed = true;
-        });
-        _sendCommand(widget.command);
+        setState(() => _isPressed = true);
+        _triggerAction();
       },
-      onTapUp: (_) {
-        setState(() {
-          _isPressed = false;
-        });
-        if (widget.isMovementButton) {
-          _sendCommand('stop');
-        }
-      },
-      onTapCancel: () {
-        setState(() {
-          _isPressed = false;
-        });
-        if (widget.isMovementButton) {
-          _sendCommand('stop');
-        }
-      },
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),
-        width: buttonSize,
-        height: buttonSize,
         decoration: BoxDecoration(
-          color: const Color(0xFF2D2D2D),
           shape: BoxShape.circle,
+          color: widget.color,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: _isPressed
+                ? [
+                    widget.color.withOpacity(0.7),
+                    widget.color.withOpacity(0.9)
+                  ] // Darker when pressed
+                : [
+                    widget.color.withOpacity(0.8),
+                    widget.color
+                  ], // Lighter normally
+          ),
           boxShadow: _isPressed
-              ? []
+              ? [] // No shadow when pressed (looks like it's inside)
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
-                    spreadRadius: 2,
-                    blurRadius: 5,
-                    offset: const Offset(4, 4),
-                  ),
-                  const BoxShadow(
-                    color: Colors.white24,
+                    color: widget.color.withOpacity(0.4),
+                    blurRadius: 15,
                     spreadRadius: 1,
-                    blurRadius: 5,
-                    offset: Offset(-4, -4),
+                    offset: const Offset(0, 4),
                   ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 5,
+                    offset: const Offset(2, 2),
+                  )
                 ],
         ),
         child: Center(
-          child: SvgPicture.asset(
-            widget.assetName,
-            width: iconSize,
-            height: iconSize,
-            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+          child: Icon(
+            widget.icon,
+            size: 32,
+            color: Colors.white.withOpacity(0.95),
           ),
         ),
       ),
